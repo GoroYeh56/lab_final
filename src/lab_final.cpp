@@ -220,8 +220,9 @@ const float Max_Wheel_Speed = 2*pi;
 // const float max_v = 2*wheel_r*Max_Wheel_Speed;
 // const float max_w = 2*max_v/wheel_separaton; 
 
-const float max_v = 0.4;
-const float max_w = 0.5;
+// const float max_v = 0.4;
+const float max_v = 0.6;
+const float max_w = 0.8;
 
 
 /* -------- Gain ---------- */
@@ -356,8 +357,8 @@ int main(int argc, char **argv)
                 }
                 break;
             case TURNING:
-
-                if (abs(error_theta) < 0.2 || abs(robot_theta + 2 * pi) < 0.2 || abs(error_theta - 2 * pi) < 0.2)
+                
+                if (abs(error_theta) < 0.2 || abs(error_theta + 2 * pi) < 0.2 || abs(error_theta - 2 * pi) < 0.2)
                 {
                     state = IDLE;
                 }
