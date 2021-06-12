@@ -12,14 +12,14 @@
             - Vector3 angular
 
     Subscribe:
-        /move_base_simple/goal
-            geometry_msgs/PoseStamped.msg
-            - header
-            - pose
         /status
             std_msgs::Float64MultiArray
 
-        -data[100 ]
+            -data[ ] (a float array)
+
+        /start
+            std_msgs::Int64
+            -data
 */
 
 
@@ -46,22 +46,40 @@ float error_x;
 float error_y;
 float error_theta;
 
-// Goal pose for robot. {x, y, theta}
-std::vector<std::vector<double>> GOALS = {
-    {(15.5+15.95)/2, 14.75,  pi/2},
-    {16, 15.95 , atan2(-1, 17-15.95)},
-    {15, 17 , atan2(-0.6, 0)},
-    {14.4, 17, -pi},
-    {13, 17, atan2(-0.5, -1)},
-    {12.5, 16, atan2(0.5, 14.75-16)},
-    {13, 14.75, -pi/2},
-    {12.5, 16, atan2(1.5, -4)},
-    {13, 12, atan2(1.4, 0) },
-    {14.4, 12, 0, atan2(0.6, 0)},
-    {15, 12,  atan2(1, 15.95-12)   },
-    {16, 15.95, atan2((15.5+15.95)/2 - 16, 14.75-15.95)}  
-};
 
+// goal = [[10,9],[8.7,11.7],[6,13],[3.3,11.7],[2,9],[3,7],[2,5],[3.3,2.3],[6,1],[8.7,2.3],[10,5],[9,7]]
+// Goal pose for robot. {x, y, theta}
+// std::vector<std::vector<double>> GOALS = {
+//     {16, 15.95 , atan2(-1, 17-15.95)},
+//     {15, 17 , atan2(-0.6, 0)},
+//     {14.4, 17, pi},
+//     {13, 17, atan2(-0.5, -1)},
+//     {12.5, 16, atan2(0.5, 14.75-16)},
+//     {13, 14.75, -pi/2},
+//     {12.5, 16, atan2(1.5, -4)},
+//     {13, 12, atan2(1.4, 0) },
+//     {14.4, 12, 0, atan2(0.6, 0)},
+//     {15, 12,  atan2(1, 15.95-12)   },
+//     {16, 15.95, atan2((15.5+15.95)/2 - 16, 14.75-15.95)},
+//     {(15.5+15.95)/2, 14.75,  pi/2}  
+// };
+
+
+
+std::vector<std::vector<double>> GOALS={
+{15.95,	15.555}, {15.69325,16.08825},
+{15.4365,	16.6215}, {14.90325,16.87825},
+{14.37,	17.135}, {13.83675,16.87825},
+{13.3035,	16.6215},{13.04675,16.08825},
+{12.79,	15.555},{12.9875,	15.16},
+{13.185,	14.765},{12.9875,	14.37},
+{12.79,	13.975},{13.04675,13.44175},
+{13.3035,	12.9085},{13.83675,12.65175},
+{14.37,	12.395},{14.90325,	12.65175},
+{15.4365,	12.9085}, {15.69325,	13.44175},
+{15.95,	13.975},{15.7525,	14.37},
+{15.555,	14.765},{15.7525,15.16}
+};
 
 bool start = false;
 
@@ -231,16 +249,24 @@ int counter = 0; // index for which goal we are trying to reach.
 float delta_x, delta_y, delta_theta, theta_r;
 float thetaConstraint(float thi)
 {
-	while(abs(thi)>pi)
-	{
-		thi = (thi > 0) ?  thi - 2*pi : thi + 2*pi;
-	}
-	thi = (thi == -1*pi) ? -1*thi : thi;
-	return thi;
+	// while(abs(thi)>pi)
+	// {
+	// 	thi = (thi > 0) ?  thi - 2*pi : thi + 2*pi;
+	// }
+	// thi = (thi == -1*pi) ? -1*thi : thi;
+	// return thi;
+    if(thi > pi ){
+        while(thi > pi) thi -= 2*pi; 
+    }
+    else if(thi <= -pi){
+        while(thi <= -pi) thi += 2*pi;
+    }
+    return thi;
+
 }
 
 float deg2rad(float degree){
-    return ;
+    return degree*pi/180;
 }
 
 
@@ -261,27 +287,23 @@ int main(int argc, char **argv)
     float v, w;
 	geometry_msgs::Twist twist;
 
-
+    float temp_goal_x, temp_goal_y, next_goal_x, next_goal_y, dx, dy;
     // Main Control Loop.
 
     // After receive a new goal: keep localization task.
 	while (ros::ok()) 
 	{
         if(start == true){
-            
-            goal_x = GOALS[counter%GOALS.size()][0];
-            goal_y = GOALS[counter%GOALS.size()][1];
-            goal_theta = GOALS[counter%GOALS.size()][2];
-            //theta constraint [-pi ~ pi].
-            if(goal_theta < -pi){
-                while(goal_theta < -pi)
-                    goal_theta += 2*pi;
-            }
-            if(goal_theta > pi){
-                while(goal_theta> pi)
-                    goal_theta -= 2*pi;
-            }
+        
+                goal_x = GOALS[counter%GOALS.size()][0];
+                goal_y = GOALS[counter%GOALS.size()][1];
+                // goal_theta = GOALS[counter%GOALS.size()][2];
+                dx = GOALS[(counter+1)%GOALS.size()][0] - goal_x;
+                dy = GOALS[(counter+1)%GOALS.size()][1] - goal_y;
+                goal_theta = atan2(dy,dx);
 
+
+            thetaConstraint(goal_theta);
 
             error_x = goal_x - robot_x;
             error_y = goal_y - robot_y;
@@ -289,7 +311,7 @@ int main(int argc, char **argv)
 
             // ROS_INFO("State: %d, Goal theta: %.2f, Robot Theta: %.2f", state, goal_theta, robot_theta);
             // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
-            printf("Robot at: %f %f %f, Goal %.2f %.2f %.2f\n", robot_x, robot_y, robot_theta, goal_x, goal_y, goal_theta);
+            printf("Robot at: %.2f %.2f %.2f, Goal %.2f %.2f %.2f\n", robot_x, robot_y, robot_theta, goal_x, goal_y, goal_theta);
             // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
 
 
