@@ -1,14 +1,24 @@
-# Lab2---Localization
-Lab 2 ROS package of the course Special Topics in Mobile Robots &amp; Self-Driving Cars
+# Lab Final--- FastSLAM Localization
+Lab Final ROS package of the course *Special Topics in Mobile Robots &amp; Self-Driving Cars*
 
 ## How to use it.
 
-1. Go to your `catkin_ws/src` folder.
+1. git clone this repository.
 
-2. Fork this repo. (If you don't have a Github account, simply use **git clone https://github.com/GoroYeh56/Lab2---Localization.git**)
+2. catkin make under `~/catkin_ws` path.
 
-3. cd ~/catkin_ws && catkin_make
+3.
+    roslaunch lab_final lab_final.launch
+    
+4. Open **another terminal**, manually publich to topic `/start`
 
-4. roslaunch lab2_localization_controller lab2.launch
+```ros
+rostic pub /start std_msgs/Int64 "data: 0"
+```
 
-### Notes: You have to git clone TA's simulation_env and turtlebot_teleop two packages in advance!
+
+### TODOs:
+
+1. Tune the **Goal Locations** (X, Y, THETA)
+2. 
+
