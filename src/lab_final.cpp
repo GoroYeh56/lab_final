@@ -49,37 +49,37 @@ float error_theta;
 
 // goal = [[10,9],[8.7,11.7],[6,13],[3.3,11.7],[2,9],[3,7],[2,5],[3.3,2.3],[6,1],[8.7,2.3],[10,5],[9,7]]
 // Goal pose for robot. {x, y, theta}
-// std::vector<std::vector<double>> GOALS = {
-//     {16, 15.95 , atan2(-1, 17-15.95)},
-//     {15, 17 , atan2(-0.6, 0)},
-//     {14.4, 17, pi},
-//     {13, 17, atan2(-0.5, -1)},
-//     {12.5, 16, atan2(0.5, 14.75-16)},
-//     {13, 14.75, -pi/2},
-//     {12.5, 16, atan2(1.5, -4)},
-//     {13, 12, atan2(1.4, 0) },
-//     {14.4, 12, 0, atan2(0.6, 0)},
-//     {15, 12,  atan2(1, 15.95-12)   },
-//     {16, 15.95, atan2((15.5+15.95)/2 - 16, 14.75-15.95)},
-//     {(15.5+15.95)/2, 14.75,  pi/2}  
-// };
-
-
-
 std::vector<std::vector<double>> GOALS={
-{15.95,	15.555}, {15.69325,16.08825},
-{15.4365,	16.6215}, {14.90325,16.87825},
-{14.37,	17.135}, {13.83675,16.87825},
-{13.3035,	16.6215},{13.04675,16.08825},
-{12.79,	15.555},{12.9875,	15.16},
-{13.185,	14.765},{12.9875,	14.37},
-{12.79,	13.975},{13.04675,13.44175},
-{13.3035,	12.9085},{13.83675,12.65175},
-{14.37,	12.395},{14.90325,	12.65175},
-{15.4365,	12.9085}, {15.69325,	13.44175},
-{15.95,	13.975},{15.7525,	14.37},
-{15.555,	14.765},{15.7525,15.16}
+{15.95,	15.555},
+{15.4365,	16.6215},
+{14.37,	17.135},
+{13.3035,	16.6215},
+{12.79,	15.555},
+{13.185,	14.765},
+{12.79,	13.975},
+{13.3035,	12.9085},
+{14.37,	12.395},
+{15.4365,	12.9085},
+{15.95,	13.975},
+{15.555,	14.765}
 };
+
+
+
+// std::vector<std::vector<double>> GOALS={
+// {15.95,	15.555}, {15.69325,16.08825},
+// {15.4365,	16.6215}, {14.90325,16.87825},
+// {14.37,	17.135}, {13.83675,16.87825},
+// {13.3035,	16.6215},{13.04675,16.08825},
+// {12.79,	15.555},{12.9875,	15.16},
+// {13.185,	14.765},{12.9875,	14.37},
+// {12.79,	13.975},{13.04675,13.44175},
+// {13.3035,	12.9085},{13.83675,12.65175},
+// {14.37,	12.395},{14.90325,	12.65175},
+// {15.4365,	12.9085}, {15.69325,	13.44175},
+// {15.95,	13.975},{15.7525,	14.37},
+// {15.555,	14.765},{15.7525,15.16}
+// };
 
 bool start = false;
 
@@ -225,8 +225,9 @@ const float Max_Wheel_Speed = 2*pi;
 // const float max_w = 2*max_v/wheel_separaton; 
 
 // const float max_v = 0.4;
-const float max_v = 0.6;
-const float max_w = 0.8;
+// const float max_v = 1.0;
+// const float max_w = 1.2;
+float max_v, max_w;
 
 
 /* -------- Gain ---------- */
@@ -239,14 +240,7 @@ const float max_w = 0.8;
 // const float Ka = 8;
 // const float Kb = -1.5;
 // const float Kp = 0.5;
-
-const float Kp = 0.3; // 0.5
-
-
-const float Krho = 0.5;   // 2
-const float Ka = 2.5;     // 8
-const float Kb = -1.12 ;    // -1.5
-
+float Kp, Ka, Kb, Krho;
 
 
 int counter = 0; // index for which goal we are trying to reach.
@@ -289,6 +283,20 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "controller");
     ros::NodeHandle node;
 
+    // Get parameters.
+    float X_CRITERION, Y_CRITERION, THETA_CRITERION;
+    node.param("X_CRITERION", X_CRITERION, float(0.1));
+    node.param("Y_CRITERION", Y_CRITERION, float(0.1));
+    node.param("THETA_CRITERION", THETA_CRITERION, float(0.3));
+    node.param("Kp", Kp, float(0.6));
+    node.param("Krho", Krho, float(0.5));
+    node.param("Ka", Ka, float(2.5));
+    node.param("Kb", Kb, float(-1.12));
+    node.param("max_v", max_v, float(1.0));
+    node.param("max_w", max_w, float(1.0));
+
+
+
 	ros::Publisher cmd_vel_pub = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
 	ros::Subscriber robot_pose_sub = node.subscribe("/status", 10, Robot_Pose_Callback);
 	// ros::Subscriber goal_pose_sub = node.subscribe("/move_base_simple/goal", 10, Goal_Pose_Callback);
@@ -316,7 +324,7 @@ int main(int argc, char **argv)
                 start_measure = true;
             }
 
-            if(counter >=48){
+            if(counter >= 2*GOALS.size()){
                 break;
             }
 
@@ -335,7 +343,7 @@ int main(int argc, char **argv)
             error_theta = goal_theta - robot_theta;
             error_theta = thetaConstraint(error_theta);
 
-            std::cout<<"Robot at: "<<robot_x << ", y: "<<robot_y <<", theta: "<< robot_theta <<", Goal: "<<goal_x<<" "<<goal_y<<" "<<goal_theta<< std::endl;
+            // std::cout<<"Robot at: "<<robot_x << ", y: "<<robot_y <<", theta: "<< robot_theta <<", Goal: "<<goal_x<<" "<<goal_y<<" "<<goal_theta<< std::endl;
             // ROS_INFO("State: %d, Goal theta: %.2f, Robot Theta: %.2f", state, goal_theta, robot_theta);
             // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
             // printf("Robot at: %.2f %.2f %.2f, Goal %.2f %.2f %.2f\n", robot_x, robot_y, robot_theta, goal_x, goal_y, goal_theta);
@@ -346,14 +354,14 @@ int main(int argc, char **argv)
             {
             case MOVING:  
                 ////////// Main Control Loop! /////////////
-                if (abs(error_x) < 0.2 && abs(error_y) < 0.2 && abs(error_theta) < 0.2)
+                if (abs(error_x) < X_CRITERION && abs(error_y) < Y_CRITERION && abs(error_theta) < THETA_CRITERION)
                 {
                 // if (abs(error_x) < 0.01 && abs(error_y) < 0.01)
                 // if (abs(error_x) < 0.3 && abs(error_y) < 0.3)
                 // {
                     state = IDLE;
                 }
-                else if (abs(error_x) < 0.2 && abs(error_y) < 0.2)
+                else if (abs(error_x) < X_CRITERION && abs(error_y) < Y_CRITERION )
                 {
                     state = TURNING;
                 }
@@ -385,7 +393,7 @@ int main(int argc, char **argv)
                 break;
             case TURNING:
                 
-                if (abs(error_theta) < 0.2 || abs(error_theta + 2 * pi) < 0.2 || abs(error_theta - 2 * pi) < 0.2)
+                if (abs(error_theta) < THETA_CRITERION || abs(error_theta + 2 * pi) < THETA_CRITERION || abs(error_theta - 2 * pi) < THETA_CRITERION)
                 {
                     state = IDLE;
                 }
@@ -404,6 +412,7 @@ int main(int argc, char **argv)
                 w = 0;
                 // ROS_INFO("Robot IDLE and break!");
                 state = MOVING;
+                std::cout<<"Done running "<<counter<<std::endl;
                 counter++;
         #ifdef DEBUG_LAB2
                 ROS_INFO("Robot reached the goal and is now IDLE.");

@@ -2,8 +2,11 @@
 
   <!-- <node name="turtlesim_node" pkg="turtlesim" type="turtlesim_node" /> -->
   
-  <node name="labf_controller" pkg="lab_final" type="lab_final_node" output="screen"/>
- 
+  <node name="labf_controller" pkg="lab_final" type="lab_final_node" output="screen">
+    <rosparam file="$(find lab_final)/param/params.yaml" command="load"/>
+  </node>
+
+
   <include file="$(find fastslam_localization)/launch/final_lab_simulation.launch" />
   <!-- <include file="$(find turtlebot_teleop)/launch/keyboard_teleop.launch" /> -->
 

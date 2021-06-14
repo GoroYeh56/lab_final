@@ -1,0 +1,12 @@
+# Error Criteria
+X_CRITERION: 0.1
+Y_CRITERION: 0.1
+THETA_CRITERION: 0.35
+# Gain
+Kp: 0.8
+Krho:  0.5
+Ka:  2.5
+Kb:  -1.12
+# Max Speed Command
+max_v: 1.0
+max_w: 1.0
