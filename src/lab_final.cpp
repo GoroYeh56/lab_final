@@ -87,6 +87,8 @@ void Start_Callback(const std_msgs::Int64::ConstPtr& msg){
     start = true; // start the controller node!
 }
 
+float thetaConstraint(float thi);
+
 void Robot_Pose_Callback(const std_msgs::Float64MultiArray::ConstPtr& msg){
     
     // robot current pose feedback (from sensors measurement)
@@ -95,14 +97,16 @@ void Robot_Pose_Callback(const std_msgs::Float64MultiArray::ConstPtr& msg){
     robot_theta = msg->data[2];
 
 
-    if(robot_theta > pi){
-        while(robot_theta > pi)
-            robot_theta -= 2*pi;
-    }
-    if(robot_theta <= -pi){
-        while(robot_theta <= 2*pi)
-            robot_theta += 2*pi;
-    }
+    // if(robot_theta > pi){
+    //     while(robot_theta > pi)
+    //         robot_theta -= 2*pi;
+    // }
+    // if(robot_theta <= -pi){
+    //     while(robot_theta <= 2*pi)
+    //         robot_theta += 2*pi;
+    // }
+
+    robot_theta = thetaConstraint(robot_theta);
 
     float delta_x = goal_x - robot_x;
     float delta_y = goal_y - robot_y;
@@ -264,6 +268,14 @@ float thetaConstraint(float thi)
     }
     return thi;
 
+    // if(thi >= 2*pi ){
+    //     while(thi >= 2*pi) thi -= 2*pi; 
+    // }
+    // else if(thi < 0){
+    //     while(thi < 0) thi += 2*pi;
+    // }
+    // return thi;
+
 }
 
 float deg2rad(float degree){
@@ -291,11 +303,23 @@ int main(int argc, char **argv)
     float temp_goal_x, temp_goal_y, next_goal_x, next_goal_y, dx, dy;
     // Main Control Loop.
 
+    // Measure Running Time
+    ros::WallTime start_, end_;
+    bool start_measure = false;
     // After receive a new goal: keep localization task.
 	while (ros::ok()) 
 	{
         if(start == true){
         
+            if(!start_measure){
+                start_ = ros::WallTime::now();
+                start_measure = true;
+            }
+
+            if(counter >=48){
+                break;
+            }
+
                 goal_x = GOALS[counter%GOALS.size()][0];
                 goal_y = GOALS[counter%GOALS.size()][1];
                 // goal_theta = GOALS[counter%GOALS.size()][2];
@@ -304,21 +328,23 @@ int main(int argc, char **argv)
                 goal_theta = atan2(dy,dx);
 
 
-            thetaConstraint(goal_theta);
+            goal_theta = thetaConstraint(goal_theta);
 
             error_x = goal_x - robot_x;
             error_y = goal_y - robot_y;
             error_theta = goal_theta - robot_theta;
+            error_theta = thetaConstraint(error_theta);
 
+            std::cout<<"Robot at: "<<robot_x << ", y: "<<robot_y <<", theta: "<< robot_theta <<", Goal: "<<goal_x<<" "<<goal_y<<" "<<goal_theta<< std::endl;
             // ROS_INFO("State: %d, Goal theta: %.2f, Robot Theta: %.2f", state, goal_theta, robot_theta);
             // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
-            printf("Robot at: %.2f %.2f %.2f, Goal %.2f %.2f %.2f\n", robot_x, robot_y, robot_theta, goal_x, goal_y, goal_theta);
+            // printf("Robot at: %.2f %.2f %.2f, Goal %.2f %.2f %.2f\n", robot_x, robot_y, robot_theta, goal_x, goal_y, goal_theta);
             // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
 
 
             switch (state)
             {
-            case MOVING:
+            case MOVING:  
                 ////////// Main Control Loop! /////////////
                 if (abs(error_x) < 0.2 && abs(error_y) < 0.2 && abs(error_theta) < 0.2)
                 {
@@ -338,7 +364,8 @@ int main(int argc, char **argv)
                     delta_y = error_y;
                     delta_theta = -error_theta;
                     theta_r = goal_theta;
-
+                
+                
                     // cout<<"Moving now!!\n";
                     rho = sqrt(pow(delta_x,2) + pow(delta_y,2));
                     alpha = atan2(delta_y,delta_x) - theta_r - delta_theta;
@@ -418,5 +445,16 @@ int main(int argc, char **argv)
         rate.sleep();
 
     }
+
+    // End running two laps.
+    end_ = ros::WallTime::now();
+
+    // print results
+    // double execution_time = (end_ - start_).toNSec() * 1e-6;
+    double execution_time = (end_ - start_).toNSec()* 1e-9;
+    // ROS_INFO_STREAM("Exectution time (ms): " << execution_time);  
+    ROS_INFO_STREAM("Exectution time (sec): " << execution_time);  
+
+    return 0;
 }
 
