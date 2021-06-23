@@ -2,13 +2,14 @@
 X_CRITERION: 0.15
 Y_CRITERION: 0.15
 THETA_CRITERION: 0.3
-#DISTANCE_THRESHOLD: 0.3 # 70 cm
-#goals_mode: 12 # 24.0
+# DISTANCE_THRESHOLD: 0.9
+# NECK_THRESHOLD: 0.85
+# mode: 24
 # Gain
 Kp: 0.8
 Krho:  0.5
 Ka:  2.5
 Kb:  -1.12
 # Max Speed Command
-max_v: 0.5
-max_w: 0.8
+# max_v: 0.8
+# max_w: 1.4

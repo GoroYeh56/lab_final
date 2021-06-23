@@ -279,12 +279,6 @@ float deg2rad(float degree){
 float distance = 0;
 int goals_mode;
 
-
-#include <set>
-std::set<int> neck_set;
-std::set<int>::iterator it;
-
- 
 int main(int argc, char **argv)
 {
     // Initialize the node here
@@ -293,7 +287,19 @@ int main(int argc, char **argv)
 
     // Get parameters.
     float X_CRITERION, Y_CRITERION, THETA_CRITERION;
-    double DISTANCE_THRESHOLD, NECK_THRESHOLD;
+    double DISTANCE_THRESHOLD;
+    // double goals_mode;
+    // node.param("X_CRITERION", X_CRITERION, float(0.1));
+    // node.param("Y_CRITERION", Y_CRITERION, float(0.1));
+    // node.param("THETA_CRITERION", THETA_CRITERION, float(0.3));
+    // node.param("Kp", Kp, float(0.6));
+    // node.param("Krho", Krho, float(0.5));
+    // node.param("Ka", Ka, float(2.5));
+    // node.param("Kb", Kb, float(-1.12));
+    // node.param("max_v", max_v, float(1.0));
+    // node.param("max_w", max_w, float(1.0));
+    // node.param("distance_threshold",DISTANCE_THRESHOLD, float(0.5));
+    // node.param("goals_mode", goals_mode, float(24.0));
 
     ros::param::param<std::float_t>("/X_CRITERION", X_CRITERION, 0.1);
     ros::param::param<std::float_t>("/Y_CRITERION", Y_CRITERION, 0.1);    
@@ -302,11 +308,10 @@ int main(int argc, char **argv)
     ros::param::param<std::float_t>("/Krho", Krho, 0.5);
     ros::param::param<std::float_t>("/Ka", Ka, 2.5); 
     ros::param::param<std::float_t>("/Kb", Kb, -1.12);
-    ros::param::param<std::float_t>("/max_v", max_v, 0.8); 
-    ros::param::param<std::float_t>("/max_w", max_w, 1.4); 
-    ros::param::param<std::double_t>("DISTANCE_THRESHOLD", DISTANCE_THRESHOLD, 0.85); 
-    ros::param::param<std::double_t>("NECK_THRESHOLD", NECK_THRESHOLD, 0.6); 
-    ros::param::param<std::int32_t>("mode", goals_mode,  12 );
+    ros::param::param<std::float_t>("/max_v", max_v, 0.5); 
+    ros::param::param<std::float_t>("/max_w", max_w, 0.8); 
+    ros::param::param<std::double_t>("DISTANCE_THRESHOLD", DISTANCE_THRESHOLD, 0.8); 
+    ros::param::param<std::int32_t>("/goals_mode", goals_mode,  12 );
 
 
 
@@ -318,14 +323,11 @@ int main(int argc, char **argv)
         for(int i=0; i<GOALS12.size(); i++){
                 GOALS.push_back(GOALS12[i]);
         }
-
-        neck_set = {0, 4, 5, 6, 9, 10,11};
     }
     else{
         for(int i=0; i<GOALS24.size(); i++){
                 GOALS.push_back(GOALS24[i]);
         }
-        neck_set = {0, 9,  10, 11, 21, 22, 23};
     }
 
     ROS_INFO("Done init GOALS.\n");
@@ -387,103 +389,112 @@ int main(int argc, char **argv)
 
             
             distance = sqrt(pow(error_x, 2) + pow(error_y,2));
-            // ONLY in MOVING state
+            // std::cout<<"Robot at: "<<robot_x << ", y: "<<robot_y <<", theta: "<< robot_theta <<", Goal: "<<goal_x<<" "<<goal_y<<" "<<goal_theta<< std::endl;
+            // ROS_INFO("State: %d, Goal theta: %.2f, Robot Theta: %.2f", state, goal_theta, robot_theta);
+            // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
+            // printf("Robot at: %.2f %.2f %.2f, Goal %.2f %.2f %.2f\n", robot_x, robot_y, robot_theta, goal_x, goal_y, goal_theta);
+            // ROS_INFO("Error: %.3f %.3f %.3f", error_x, error_y, error_theta);
+
+
             switch (state)
             {
             case MOVING:  
                 ////////// Main Control Loop! /////////////
-                
-                 it= neck_set.find(counter%GOALS.size());
+                if(distance < DISTANCE_THRESHOLD && counter>0){
+                //     // state = TURNING;
+                    now = ros::WallTime::now();
+                    std::cout<<"Dis: "<<distance<<", Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
+                    counter++;                    
 
-                if(  it != neck_set.end() ){ // Should be careful
-                    if(distance < NECK_THRESHOLD ){ //&& counter>0){
-                        now = ros::WallTime::now();
-                        std::cout<<"Dis: "<<distance<<", Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
-                        counter++;                    
-                    }
-                    else{
-                        if (abs(error_x) < X_CRITERION && abs(error_y) < Y_CRITERION && abs(error_theta) < THETA_CRITERION)
-                        {
-                            now = ros::WallTime::now();
-                            std::cout<<"Else - Dis: "<<distance<<", Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
-                            counter++;  
-                        }
-                        else
-                        {   
-                            // std::cout<<"dis: "<<distance<<std::endl;
-                            /* ----- For Consistency ----- */
-                            delta_x = error_x;
-                            delta_y = error_y;
-                            delta_theta = -error_theta;
-                            theta_r = goal_theta;
-                        
-                        
-                            // cout<<"Moving now!!\n";
-                            rho = sqrt(pow(delta_x,2) + pow(delta_y,2));
-                            alpha = atan2(delta_y,delta_x) - theta_r - delta_theta;
-                            alpha = thetaConstraint(alpha);
-                            
-                            beta = -1*(alpha + delta_theta);
-                            beta = thetaConstraint(beta);
-                            
-                            v = Krho*rho;
-                            w = Ka*alpha + Kb*beta;
-
-                            /* --- Control Law --- */
-                            // v = Krho * rho;
-                            // w = Ka * alpha + Kb * beta;
-                            // ROS_INFO("Robot is MOVING !!!");
-                        }
-                    }
+                //     // counter++;
+                //     // std::cout<<"Next goal: "<<counter<<std::endl;
+                //     // break;
                 }
                 else{
-                    if(distance < DISTANCE_THRESHOLD ){ //&& counter>0){
+                    if (abs(error_x) < X_CRITERION && abs(error_y) < Y_CRITERION && abs(error_theta) < THETA_CRITERION)
+                    {
+                    // if (abs(error_x) < 0.01 && abs(error_y) < 0.01)
+                    // if (abs(error_x) < 0.3 && abs(error_y) < 0.3)
+                    // {
                         now = ros::WallTime::now();
-                        std::cout<<"Dis: "<<distance<<", Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
-                        counter++;                    
+                        std::cout<<"Else - Dis: "<<distance<<", Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
+                        counter++;  
+                        // state = IDLE;
                     }
-                    else{
-                        if (abs(error_x) < X_CRITERION && abs(error_y) < Y_CRITERION && abs(error_theta) < THETA_CRITERION)
-                        {
-                            now = ros::WallTime::now();
-                            std::cout<<"Else - Dis: "<<distance<<", Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
-                            counter++;  
-                        }
-                        else
-                        {   
-                            // std::cout<<"dis: "<<distance<<std::endl;
-                            /* ----- For Consistency ----- */
-                            delta_x = error_x;
-                            delta_y = error_y;
-                            delta_theta = -error_theta;
-                            theta_r = goal_theta;
+                    // else if (abs(error_x) < X_CRITERION && abs(error_y) < Y_CRITERION )
+                    // {
+                    //     state = TURNING;
+                    // }
+                    else
+                    {   
+                        // std::cout<<"dis: "<<distance<<std::endl;
+                        /* ----- For Consistency ----- */
+                        delta_x = error_x;
+                        delta_y = error_y;
+                        delta_theta = -error_theta;
+                        theta_r = goal_theta;
+                    
+                    
+                        // cout<<"Moving now!!\n";
+                        rho = sqrt(pow(delta_x,2) + pow(delta_y,2));
+                        alpha = atan2(delta_y,delta_x) - theta_r - delta_theta;
+                        alpha = thetaConstraint(alpha);
                         
+                        beta = -1*(alpha + delta_theta);
+                        beta = thetaConstraint(beta);
                         
-                            // cout<<"Moving now!!\n";
-                            rho = sqrt(pow(delta_x,2) + pow(delta_y,2));
-                            alpha = atan2(delta_y,delta_x) - theta_r - delta_theta;
-                            alpha = thetaConstraint(alpha);
-                            
-                            beta = -1*(alpha + delta_theta);
-                            beta = thetaConstraint(beta);
-                            
-                            v = Krho*rho;
-                            w = Ka*alpha + Kb*beta;
+                        v = Krho*rho;
+                        w = Ka*alpha + Kb*beta;
 
-                            /* --- Control Law --- */
-                            // v = Krho * rho;
-                            // w = Ka * alpha + Kb * beta;
-                            // ROS_INFO("Robot is MOVING !!!");
-                        }
+                        /* --- Control Law --- */
+                        // v = Krho * rho;
+                        // w = Ka * alpha + Kb * beta;
+                        // ROS_INFO("Robot is MOVING !!!");
                     }
                 }
-                    
                 break;
+            case TURNING:
+                
+                if (abs(error_theta) < THETA_CRITERION || abs(error_theta + 2 * pi) < THETA_CRITERION || abs(error_theta - 2 * pi) < THETA_CRITERION)
+                {
+                    // state = IDLE;
+                    state = MOVING;
+                    now = ros::WallTime::now();
+                    std::cout<<"Dis: "<<distance<<"Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
+                    counter++;                    
+
+                    // counter++;
+                    // std::cout<<"Next goal: "<<counter<<std::endl;
+                    break;                    
+                }
+                else
+                {
+                    /* --- Control Law --- */
+                    v = 0;
+                    w = Kp * error_theta;
+                }
+
+                break;
+            case IDLE:
+                // Stop and listen to new goal.
+                // reset error signals.
+                v = 0;
+                w = 0;
+                // ROS_INFO("Robot IDLE and break!");
+                state = MOVING;
+                now = ros::WallTime::now();
+                std::cout<<"Done running "<<counter<<", time executed: "<<(now - start_).toNSec()* 1e-9<<" sec"<<std::endl;
+                counter++;
         #ifdef DEBUG_LAB2
                 ROS_INFO("Robot reached the goal and is now IDLE.");
         #endif
+
+                break;
             }
-                            
+               
+
+
+                
             /* Command Inputs Constraints */
             if ( v > max_v ){
                 v = max_v;
@@ -536,3 +547,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
+

@@ -4,8 +4,7 @@
   
   <node name="labf_controller" pkg="lab_final" type="lab_final_node" output="screen">
     <rosparam file="$(find lab_final)/param/params.yaml" command="load"/>
-    <!-- <param name="goals_mode" type="int" value="24" /> -->
-    <param name="DISTANCE_THRESHOLD" type="double" value="0.7" />
+    <!-- <param name="DISTANCE_THRESHOLD" type="double" value="0.85" /> -->
   </node>
 
 
