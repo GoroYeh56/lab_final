@@ -302,8 +302,8 @@ int main(int argc, char **argv)
     ros::param::param<std::float_t>("/Krho", Krho, 0.5);
     ros::param::param<std::float_t>("/Ka", Ka, 2.5); 
     ros::param::param<std::float_t>("/Kb", Kb, -1.12);
-    ros::param::param<std::float_t>("/max_v", max_v, 0.8); 
-    ros::param::param<std::float_t>("/max_w", max_w, 1.4); 
+    ros::param::param<std::float_t>("/max_v", max_v, 0.5); 
+    ros::param::param<std::float_t>("/max_w", max_w, 1.0); 
     ros::param::param<std::double_t>("DISTANCE_THRESHOLD", DISTANCE_THRESHOLD, 0.85); 
     ros::param::param<std::double_t>("NECK_THRESHOLD", NECK_THRESHOLD, 0.6); 
     ros::param::param<std::int32_t>("mode", goals_mode,  12 );
